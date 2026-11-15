@@ -1,0 +1,48 @@
+@startuml
+!include _skin.iuml
+autonumber "<b>0."
+participant "Sensor Kualitas\nUdara (AQ-0412)" as S
+participant "Edge Gateway" as E
+participant "EMQX Broker\n(GKE)" as B
+queue "Pub/Sub\nenv.telemetry" as P
+participant "Dataflow\nStream Job" as D
+database "Memorystore\n(Hot)" as R
+database "Bigtable\n(Hot TS)" as BT
+queue "Pub/Sub\nalert.raised" as PA
+participant "Alert & Notif.\nService" as A
+database "Cloud SQL" as SQL
+participant "Realtime Push\n(WebSocket)" as WS
+actor "Analis DLH\n(Dashboard)" as U
+== Akuisisi & ingest (target ≤ 1 dtk) ==
+S -> E : PM2.5=88 µg/m³, NO2, O3\n(Modbus/BLE, tiap 60 dtk)
+E -> E : agregasi 1 menit,\nbuffer offline, cap waktu
+E -> B : PUBLISH scms/env/JKT-PST/aq-0412/telemetry\nQoS 1, mTLS X.509
+B -> B : autentikasi sertifikat\n& ACL topik
+B -> P : bridge (pesan + atribut deviceId, zone)
+B --> E : PUBACK
+== Pemrosesan stream (target ≤ 2 dtk) ==
+P -> D : pull (streaming)
+activate D
+D -> D : validasi skema & rentang,\ndedup (messageId)
+D -> D : enrichment: zona, lokasi,\nkonversi ke sub-indeks ISPU
+par tulis paralel
+  D -> R : HSET latest:aq-0412 {ispu:121}
+  D -> BT : row env#JKT-PST#aq-0412#ts
+end
+D -> D : window geser 15 mnt,\nevaluasi ThresholdRule (ISPU>100)
+alt ambang terlampaui ≥ durasi aturan
+  D -> PA : publish AlertRaised\n{category:ENV, level:WARN}
+end
+deactivate D
+== Peringatan & tampilan (target total ≤ 5 dtk) ==
+PA -> A : push subscription
+activate A
+A -> A : dedup & suppress\n(window 30 mnt per zona)
+A -> SQL : INSERT alert
+A -> WS : event alert.new
+deactivate A
+WS -> U : WebSocket frame
+U -> U : marker merah di heatmap,\nbanner peringatan
+U -> A : POST /alerts/{id}/ack
+A -> SQL : UPDATE acknowledged_by
+@enduml

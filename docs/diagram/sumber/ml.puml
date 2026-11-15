@@ -1,0 +1,45 @@
+@startuml
+!include _skin.iuml
+top to bottom direction
+skinparam rectangle {
+  BackgroundColor #F2F8F8
+  BorderColor #0E6B70
+}
+skinparam database {
+  BackgroundColor #E8EEF8
+  BorderColor #2F6FB8
+}
+database "BigQuery\nispu_daily,\nweather, traffic_agg,\ncalendar" as BQ
+rectangle "Vertex AI Pipelines (Kubeflow) · mingguan" as PIPE {
+  rectangle "1 Ekstraksi &\nvalidasi data\n(TFDV)" as S1
+  rectangle "2 Rekayasa fitur\nlag 1–14, roll7,\nmusim (sin/cos DOY),\nstasiun, cuaca" as S2
+  rectangle "3 Split temporal\nlatih ≤2018,\nvalidasi 2019,\nuji 2020–2021" as S3
+  rectangle "4 Latih kandidat\nPersistence, ARIMA,\nRF, XGBoost, LSTM" as S4
+  rectangle "5 Evaluasi\nMAE, RMSE, MAPE,\nrecall 'Tidak Sehat'" as S5
+  rectangle "6 Gate:\nMAE < model aktif\n& skill > 10%?" as S6
+}
+rectangle "Vertex AI\nModel Registry" as REG
+rectangle "Vertex AI Endpoint\n(online, autoscale)" as EP
+rectangle "Batch prediction\nharian 05.00 WIB\n(Cloud Scheduler)" as BP
+database "BigQuery\npredictions" as PR
+rectangle "Prediction Service\n(Cloud Run)" as PS
+rectangle "Alert Service\n(prakiraan > 90 →\nperingatan dini)" as AL
+rectangle "Dashboard &\nAplikasi Warga" as UI
+rectangle "Vertex AI Model\nMonitoring (drift,\nskew) → retrain" as MON
+BQ --> S1
+S1 --> S2
+S2 --> S3
+S3 --> S4
+S4 --> S5
+S5 --> S6
+S6 --> REG : lulus
+REG --> EP
+REG --> BP
+BP --> PR
+EP --> PS
+PR --> PS
+PS --> AL
+PS --> UI
+EP ..> MON
+MON ..> S1 : picu retrain
+@enduml

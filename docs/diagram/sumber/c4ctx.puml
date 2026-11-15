@@ -1,0 +1,34 @@
+@startuml
+!include _skin.iuml
+skinparam rectangle {
+  BackgroundColor<<person>> #08427B
+  FontColor<<person>> #FFFFFF
+  BorderColor<<person>> #073B6F
+  BackgroundColor<<system>> #1168BD
+  FontColor<<system>> #FFFFFF
+  BorderColor<<system>> #0B4884
+  BackgroundColor<<ext>> #8C8C8C
+  FontColor<<ext>> #FFFFFF
+  BorderColor<<ext>> #6B6B6B
+}
+skinparam stereotypeCBackgroundColor transparent
+hide stereotype
+rectangle "==Operator Pusat Kendali\n<size:10>[Person]</size>\n\nManajer kota, Dishub,\nDLH, Polda" <<person>> as OP
+rectangle "==Petugas Lapangan\n<size:10>[Person]</size>\n\nRegu PJU, sampah,\nparkir, pompa" <<person>> as PL
+rectangle "==Warga\n<size:10>[Person]</size>\n\nPengguna aplikasi\nmobile publik" <<person>> as WG
+rectangle "==Smart City Monitoring System\n<size:10>[Software System]</size>\n\nMenghimpun, memproses, menganalisis,\nmemprediksi, dan memvisualkan data\nlalu lintas, lingkungan, dan fasilitas\npublik secara real-time" <<system>> as SCMS
+rectangle "==Jaringan Perangkat IoT\n<size:10>[External System]</size>\n\nKamera, loop detector, GPS bus,\nsensor udara/bising, aset pintar" <<ext>> as IOT
+rectangle "==Satu Data Jakarta /\nSPKU KLHK\n<size:10>[External System]</size>\n\nData ISPU referensi" <<ext>> as SDJ
+rectangle "==BMKG API\n<size:10>[External System]</size>\n\nCuaca & prakiraan" <<ext>> as BMKG
+rectangle "==Transjakarta / GTFS\n<size:10>[External System]</size>\n\nRute, halte, jadwal" <<ext>> as TJ
+rectangle "==Kanal Notifikasi\n<size:10>[External System]</size>\n\nFCM push, SMS gateway,\nWhatsApp Business" <<ext>> as NOT
+OP --> SCMS : Memantau, memverifikasi,\nmengelola [HTTPS]
+PL --> SCMS : Menerima & memperbarui\ntiket [HTTPS/Mobile]
+WG --> SCMS : Info rute & ISPU\n[HTTPS/REST]
+IOT --> SCMS : Telemetri [MQTT/TLS,\nCoAP/DTLS, RTSP]
+SCMS --> IOT : Perintah & konfigurasi\n[MQTT]
+SDJ --> SCMS : ISPU historis &\nharian [REST/CSV]
+BMKG --> SCMS : Cuaca [REST]
+TJ --> SCMS : GTFS statis &\nrealtime [HTTPS]
+SCMS --> NOT : Peringatan [HTTPS]
+@enduml

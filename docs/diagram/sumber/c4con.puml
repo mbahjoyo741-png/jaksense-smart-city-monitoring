@@ -1,0 +1,96 @@
+@startuml
+!include _skin.iuml
+skinparam rectangle {
+  BackgroundColor<<c>> #438DD5
+  FontColor<<c>> #FFFFFF
+  BorderColor<<c>> #3C7FC0
+  BackgroundColor<<db>> #438DD5
+  FontColor<<db>> #FFFFFF
+}
+skinparam database {
+  BackgroundColor #438DD5
+  FontColor #FFFFFF
+  BorderColor #3C7FC0
+}
+skinparam queue {
+  BackgroundColor #438DD5
+  FontColor #FFFFFF
+  BorderColor #3C7FC0
+}
+skinparam package {
+  BackgroundColor #FAFBFC
+  FontSize 12
+}
+hide stereotype
+top to bottom direction
+package "5. Presentation Layer" #F3F7FB {
+  rectangle "==Dashboard Pusat Kendali\n<size:9>[React SPA · Firebase Hosting]</size>" <<c>> as WEB
+  rectangle "==Aplikasi Petugas\n<size:9>[Flutter · Android]</size>" <<c>> as MOB
+  rectangle "==Aplikasi Warga\n<size:9>[Flutter · Android/iOS]</size>" <<c>> as PUB
+  rectangle "==API Gateway\n<size:9>[Apigee X · REST/GraphQL/WebSocket]</size>" <<c>> as GW
+}
+package "4. Application & Service Layer (microservices · GKE Autopilot / Cloud Run)" #F3F7FB {
+  rectangle "==Traffic Service\n<size:9>[Go]</size>" <<c>> as TS
+  rectangle "==Environment Service\n<size:9>[Go]</size>" <<c>> as ES
+  rectangle "==Facility Service\n<size:9>[Node.js]</size>" <<c>> as FS
+  rectangle "==Alert & Notification\n<size:9>[Node.js]</size>" <<c>> as AS
+  rectangle "==Prediction Service\n<size:9>[Python · FastAPI]</size>" <<c>> as PS
+  rectangle "==Device Registry Service\n<size:9>[Go]</size>" <<c>> as DS
+  rectangle "==Identity & Access\n<size:9>[Identity Platform + OPA]</size>" <<c>> as IAM
+  rectangle "==Realtime Push\n<size:9>[Node.js · WebSocket]</size>" <<c>> as RT
+}
+package "3. Data Storage Layer" #F3F7FB {
+  database "==HOT\nMemorystore Redis\n<size:9>status terkini, TTL 1 jam</size>" as HOT1
+  database "==HOT\nCloud Bigtable\n<size:9>time-series 30 hari</size>" as HOT2
+  database "==WARM\nBigQuery\n<size:9>analitik 2 tahun</size>" as WARM
+  database "==RELASIONAL\nCloud SQL PostgreSQL\n+ PostGIS" as SQL
+  database "==COLD\nCloud Storage\nColdline→Archive" as COLD
+}
+package "2. Data Ingestion & Processing Layer" #F3F7FB {
+  queue "==Pub/Sub\n<size:9>topik per domain</size>" as PUBSUB
+  rectangle "==Stream Processor\n<size:9>[Dataflow · Apache Beam]</size>\nvalidasi · enrichment ·\nwindowing · CEP" <<c>> as DF
+  rectangle "==Video Analytics\n<size:9>[Vertex AI Vision]</size>" <<c>> as VA
+  rectangle "==Batch ETL\n<size:9>[Dataflow batch · Composer]</size>" <<c>> as ETL
+}
+package "1. IoT / Edge Layer" #F3F7FB {
+  rectangle "==Edge Gateway\n<size:9>[GDC Edge / Jetson]</size>" <<c>> as EDGE
+  rectangle "==MQTT Broker Cluster\n<size:9>[EMQX Enterprise · GKE]</size>" <<c>> as MQTT
+  rectangle "==CoAP/LwM2M Bridge" <<c>> as COAP
+  rectangle "==Sensor & Aset IoT" <<c>> as DEV
+}
+DEV --> EDGE : MQTT/CoAP/RTSP
+EDGE --> MQTT : MQTT 5 over TLS 1.3\n(mTLS X.509)
+DEV --> COAP : CoAP/DTLS
+COAP --> MQTT
+EDGE --> VA : RTSP klip / frame
+MQTT --> PUBSUB : Pub/Sub bridge
+VA --> PUBSUB
+PUBSUB --> DF
+DF --> HOT1
+DF --> HOT2
+DF --> WARM
+DF --> PUBSUB : alert.*
+ETL --> COLD
+WARM --> ETL
+PUBSUB --> AS
+PUBSUB --> RT
+TS --> HOT1
+TS --> HOT2
+ES --> HOT2
+ES --> WARM
+FS --> SQL
+DS --> SQL
+PS --> WARM
+AS --> SQL
+GW --> TS
+GW --> ES
+GW --> FS
+GW --> PS
+GW --> AS
+GW --> DS
+GW ..> IAM : JWT/OIDC
+WEB --> GW
+MOB --> GW
+PUB --> GW
+RT --> WEB : WebSocket
+@enduml

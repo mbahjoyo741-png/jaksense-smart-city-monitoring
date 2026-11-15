@@ -1,0 +1,196 @@
+@startuml
+!include _skin.iuml
+skinparam linetype ortho
+hide empty members
+abstract class Device {
+  - deviceId : String
+  - serialNo : String
+  - model : String
+  - firmwareVersion : String
+  - location : GeoPoint
+  - zoneId : String
+  - status : DeviceStatus
+  - certFingerprint : String
+  - lastSeen : Instant
+  + heartbeat() : void
+  + rotateCertificate() : void
+}
+class Sensor {
+  - measurands : List<Measurand>
+  - samplingIntervalSec : int
+  - calibratedAt : Date
+  + read() : Reading
+}
+class Camera {
+  - streamUrl : URI
+  - resolution : String
+  + captureFrame() : Frame
+}
+class InductiveLoop {
+  - laneCount : int
+}
+class BusGpsUnit {
+  - busId : String
+  - routeId : String
+}
+abstract class PublicAsset {
+  - assetId : String
+  - assetType : AssetType
+  - installDate : Date
+  - operationalStatus : OpStatus
+  - zoneId : String
+  + reportFault(code : String) : Fault
+  + estimateRUL() : RulEstimate
+}
+class Streetlight {
+  - ratedPowerW : double
+  - energyKWh : double
+}
+class WasteBin {
+  - capacityL : int
+  - fillLevelPct : double
+}
+class ParkingMeter {
+  - bays : int
+  - occupancyPct : double
+}
+class WaterPump {
+  - flowRateLps : double
+  - runHours : double
+}
+abstract class Reading {
+  - readingId : UUID
+  - timestamp : Instant
+  - quality : QualityFlag
+}
+class TrafficReading {
+  - speedKmh : double
+  - volumeVph : int
+  - occupancyPct : double
+}
+class PollutionReading {
+  - pm25 : double
+  - pm10 : double
+  - no2 : double
+  - o3 : double
+  - aqi : int
+  + computeIspu() : int
+}
+class NoiseReading {
+  - laeqDb : double
+}
+class WeatherReading {
+  - tempC : double
+  - humidityPct : double
+}
+class RoadSegment {
+  - segmentId : String
+  - name : String
+  - freeFlowKmh : double
+  - geometry : LineString
+  + congestionLevel() : CongestionLevel
+}
+class Zone {
+  - zoneId : String
+  - name : String
+  - boundary : Polygon
+}
+class TrafficIncident {
+  - incidentId : String
+  - type : IncidentType
+  - severity : Severity
+  - detectedAt : Instant
+  - status : IncidentStatus
+  - source : DetectionSource
+  + verify(by : User) : void
+  + resolve() : void
+}
+class Alert {
+  - alertId : String
+  - category : AlertCategory
+  - level : AlertLevel
+  - message : String
+  - raisedAt : Instant
+  - acknowledgedBy : User
+  + acknowledge(u : User) : void
+}
+class ThresholdRule {
+  - ruleId : String
+  - measurand : Measurand
+  - operator : String
+  - threshold : double
+  - durationSec : int
+  + evaluate(r : Reading) : boolean
+}
+class MaintenanceTicket {
+  - ticketId : String
+  - priority : Priority
+  - state : TicketState
+  - slaDueAt : Instant
+  - createdAt : Instant
+  - resolutionNote : String
+  + assign(t : MaintenanceTeam) : void
+  + start() : void
+  + resolve(note : String) : void
+  + close() : void
+  + cancel(reason : String) : void
+}
+class MaintenanceTeam {
+  - teamId : String
+  - name : String
+  - skills : List<AssetType>
+}
+class User {
+  - userId : String
+  - name : String
+  - email : String
+}
+class Role {
+  - roleName : String
+  - permissions : Set<String>
+}
+class Prediction {
+  - predictionId : UUID
+  - modelVersion : String
+  - target : String
+  - horizon : Duration
+  - value : double
+  - lower : double
+  - upper : double
+  - issuedAt : Instant
+}
+enum TicketState {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+Device <|-- Sensor
+Device <|-- Camera
+Device <|-- InductiveLoop
+Device <|-- BusGpsUnit
+PublicAsset <|-- Streetlight
+PublicAsset <|-- WasteBin
+PublicAsset <|-- ParkingMeter
+PublicAsset <|-- WaterPump
+Reading <|-- TrafficReading
+Reading <|-- PollutionReading
+Reading <|-- NoiseReading
+Reading <|-- WeatherReading
+Sensor "1" -- "0..*" Reading : menghasilkan >
+PublicAsset "1" o-- "1..*" Device : dipantau oleh >
+Zone "1" o-- "0..*" Device
+Zone "1" o-- "0..*" RoadSegment
+RoadSegment "1" -- "0..*" TrafficReading
+RoadSegment "1" -- "0..*" TrafficIncident
+ThresholdRule "1" ..> "0..*" Alert : memicu >
+TrafficIncident "1" -- "0..1" Alert
+PublicAsset "1" -- "0..*" MaintenanceTicket
+MaintenanceTicket "0..*" -- "0..1" MaintenanceTeam : ditangani >
+MaintenanceTicket --> TicketState
+MaintenanceTeam "1" o-- "1..*" User
+User "0..*" -- "1..*" Role
+Zone "1" -- "0..*" Prediction
+@enduml

@@ -1,0 +1,39 @@
+@startuml
+!include _skin.iuml
+autonumber "<b>0."
+actor "Teknisi\nInstalasi" as T
+participant "Perangkat IoT\n(Secure Element\nATECC608)" as D
+participant "Aplikasi\nProvisioning" as APP
+participant "Device Registry\nService" as REG
+participant "Certificate Authority\nService (CAS)" as CAS
+database "Cloud SQL\n(device)" as DB
+participant "EMQX Broker" as B
+== Tahap pabrik (manufaktur) ==
+D -> D : bangkitkan key pair ECC P-256\ndi secure element (private key tidak pernah keluar)
+D -> CAS : CSR dengan ID pabrik
+CAS --> D : sertifikat "birth" (Manufacturer CA,\nberlaku 10 thn)
+== Tahap instalasi lapangan ==
+T -> APP : pindai QR (serial_no)\n+ ambil GPS & foto
+APP -> REG : POST /devices/claim\n{serial, lokasi, zona, asset_id}
+REG -> DB : cek serial ada di allowlist\npengadaan (BAST)
+REG -> DB : INSERT device status=PENDING
+REG --> APP : 201 Created
+== Tahap aktivasi (zero-touch) ==
+D -> B : CONNECT ke endpoint provisioning\n(mTLS dengan sertifikat birth)
+B -> REG : webhook auth: fingerprint birth cert
+REG --> B : izinkan topik $prov/{serial} saja
+D -> B : PUBLISH CSR operasional (key pair baru)
+B -> REG : teruskan CSR
+REG -> CAS : terbitkan sertifikat operasional\n(Subordinate CA "scms-devices", 1 thn)
+CAS --> REG : sertifikat X.509 (CN=device_id)
+REG -> DB : UPDATE status=ACTIVE,\ncert_fingerprint, cert_expires_at
+REG -> B : publish konfigurasi + sertifikat\nke $prov/{serial}
+B --> D : sertifikat operasional + device_id
+D -> B : DISCONNECT lalu CONNECT ulang\n(mTLS sertifikat operasional)
+B -> B : ACL: hanya scms/+/{zone}/{device_id}/#
+D -> B : PUBLISH telemetri pertama
+note over REG, CAS
+Rotasi otomatis 30 hari sebelum kedaluwarsa.
+Pencabutan: CRL/OCSP CAS + blokir di ACL broker.
+end note
+@enduml

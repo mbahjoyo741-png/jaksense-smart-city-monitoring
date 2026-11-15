@@ -1,0 +1,30 @@
+# Build image dan deploy ke Cloud Run di region Jakarta (asia-southeast2).
+# Jalankan dari root repo:
+#   gcloud builds submit --config deploy/gcp/cloudbuild.yaml .
+substitutions:
+  _REGION: asia-southeast2
+  _REPO: scms
+  _SERVICE: jaksense
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA
+      - --region=${_REGION}
+      - --port=8080
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=3
+      - --cpu=1
+      - --memory=256Mi
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+options:
+  logging: CLOUD_LOGGING_ONLY

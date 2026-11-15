@@ -1,0 +1,14 @@
+digraph G { rankdir=LR; graph[dpi=200,fontname="DejaVu Sans",nodesep=0.5,ranksep=1.1]; node[fontname="DejaVu Sans",fontsize=11]; edge[fontname="DejaVu Sans",fontsize=9,color="#3A4A55"];
+ IOT[label="Perangkat IoT",shape=box,style="filled",fillcolor="#E6F2F2",color="#0E6B70"];
+ EXT[label="Sumber Data Eksternal\n(SDJ, BMKG, GTFS)",shape=box,style="filled",fillcolor="#E6F2F2",color="#0E6B70"];
+ OP[label="Operator &\nPetugas",shape=box,style="filled",fillcolor="#E6F2F2",color="#0E6B70"];
+ WG[label="Warga",shape=box,style="filled",fillcolor="#E6F2F2",color="#0E6B70"];
+ P0[label="0\nSmart City\nMonitoring System",shape=circle,style=filled,fillcolor="#1168BD",fontcolor=white,width=2.2,fixedsize=true];
+ IOT->P0[label="telemetri, status,\nframe video"];
+ P0->IOT[label="konfigurasi,\nperintah, sertifikat"];
+ EXT->P0[label="ISPU referensi,\ncuaca, rute/jadwal"];
+ OP->P0[label="verifikasi insiden,\nupdate tiket, aturan"];
+ P0->OP[label="dashboard, peringatan,\ntiket, laporan"];
+ WG->P0[label="permintaan rute,\nlokasi"];
+ P0->WG[label="rute, ISPU,\nnotifikasi"];
+}

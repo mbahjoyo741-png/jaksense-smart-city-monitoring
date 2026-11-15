@@ -1,0 +1,99 @@
+@startuml
+!include _skin.iuml
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #4285F4
+}
+skinparam package {
+  BackgroundColor #F8FAFE
+  BorderColor #4285F4
+}
+skinparam node {
+  BackgroundColor #EEF4FE
+  BorderColor #4285F4
+}
+skinparam cloud {
+  BackgroundColor #FFFFFF
+  BorderColor #8A9AA3
+}
+cloud "Lapangan (Jakarta)" as FIELD {
+  rectangle "Sensor, kamera,\nloop, GPS bus,\naset pintar" as DEV
+  rectangle "Edge gateway\n(GDC Edge /\nJetson)" as EDGE
+}
+cloud "Pengguna" as USERS {
+  rectangle "Operator / Petugas /\nWarga" as U
+}
+package "Google Cloud · Region utama asia-southeast2 (Jakarta) · 3 zona" {
+  rectangle "Cloud Load Balancing\n+ Cloud Armor (WAF, DDoS)" as LB
+  rectangle "Network LB (TCP 8883)\nuntuk MQTT" as NLB
+  package "VPC scms-prod (Private Service Connect, VPC-SC)" {
+    node "GKE Autopilot\n(regional)" as GKE {
+      rectangle "EMQX cluster\n(3–9 node)" as EMQX
+      rectangle "Microservices\n(Traffic, Env, Facility,\nAlert, Device, Push)" as MS
+    }
+    rectangle "Cloud Run\n(Prediction API,\nreport, webhook)" as CR
+    rectangle "Pub/Sub" as PS
+    rectangle "Dataflow\n(Streaming Engine)" as DF
+    rectangle "Vertex AI\n(Pipelines, Training,\nEndpoints, Monitoring)" as VX
+    rectangle "Vertex AI Vision" as VV
+    rectangle "Memorystore Redis\n(Standard HA)" as RED
+    rectangle "Cloud Bigtable\n(replikasi multi-zona)" as BT
+    rectangle "Cloud SQL PostgreSQL\n(HA regional + PostGIS)" as SQL
+    rectangle "BigQuery" as BQ
+    rectangle "Cloud Storage\n(Standard→Coldline→Archive)" as GCS
+  }
+  rectangle "Apigee X" as APG
+  rectangle "Identity Platform\n+ IAM" as IDP
+  rectangle "Certificate Authority\nService" as CAS
+  rectangle "Secret Manager\n+ Cloud KMS (CMEK)" as KMS
+  rectangle "Cloud Composer\n+ Cloud Scheduler" as CMP
+  rectangle "Firebase Hosting\n+ FCM" as FB
+  rectangle "Cloud Monitoring, Logging,\nTrace, Error Reporting" as OPS
+  rectangle "Looker Studio" as LK
+}
+package "CI/CD" {
+  rectangle "GitHub /\nCloud Source" as GIT
+  rectangle "Cloud Build" as CB
+  rectangle "Artifact Registry\n+ Binary Authorization" as AR
+  rectangle "Cloud Deploy\n(canary)" as CD
+}
+package "DR · asia-southeast1 (Singapura)" {
+  rectangle "Bigtable replika,\nGCS dual-region,\nCloud SQL cross-region\nread replica, BQ snapshot" as DR
+}
+DEV --> EDGE
+EDGE --> NLB : MQTT/TLS 8883
+NLB --> EMQX
+EMQX --> PS
+EDGE --> VV
+VV --> PS
+PS --> DF
+DF --> RED
+DF --> BT
+DF --> BQ
+BQ --> GCS
+BQ --> VX
+VX --> CR
+U --> LB
+LB --> APG
+APG --> MS
+APG --> CR
+MS --> SQL
+MS --> RED
+MS --> BT
+MS --> PS
+MS --> FB
+IDP ..> APG
+CAS ..> EMQX
+KMS ..> SQL
+CMP ..> DF
+CMP ..> VX
+BQ --> LK
+GIT --> CB
+CB --> AR
+AR --> CD
+CD --> GKE
+CD --> CR
+BT ..> DR
+SQL ..> DR
+GCS ..> DR
+@enduml

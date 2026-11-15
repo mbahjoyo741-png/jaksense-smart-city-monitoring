@@ -1,0 +1,159 @@
+@startuml
+!include _skin.iuml
+hide circle
+skinparam linetype ortho
+entity "zone" as zone {
+  * zone_id : varchar(12) <<PK>>
+  --
+  name : varchar(80)
+  boundary : geometry(Polygon,4326)
+}
+entity "device_model" as dm {
+  * model_id : serial <<PK>>
+  --
+  vendor : varchar(60)
+  device_type : device_type_enum
+  protocol : protocol_enum
+  measurands : text[]
+}
+entity "device" as dev {
+  * device_id : varchar(24) <<PK>>
+  --
+  * model_id : int <<FK>>
+  * zone_id : varchar(12) <<FK>>
+  asset_id : varchar(24) <<FK>>
+  serial_no : varchar(40) <<UQ>>
+  location : geometry(Point,4326)
+  status : device_status_enum
+  cert_fingerprint : char(64)
+  cert_expires_at : timestamptz
+  firmware_version : varchar(20)
+  last_seen_at : timestamptz
+}
+entity "public_asset" as asset {
+  * asset_id : varchar(24) <<PK>>
+  --
+  * zone_id : varchar(12) <<FK>>
+  asset_type : asset_type_enum
+  location : geometry(Point,4326)
+  install_date : date
+  op_status : op_status_enum
+  spec : jsonb
+  rul_days_est : int
+}
+entity "road_segment" as seg {
+  * segment_id : varchar(24) <<PK>>
+  --
+  * zone_id : varchar(12) <<FK>>
+  name : varchar(120)
+  free_flow_kmh : numeric(5,1)
+  geom : geometry(LineString,4326)
+}
+entity "threshold_rule" as rule {
+  * rule_id : serial <<PK>>
+  --
+  measurand : varchar(20)
+  operator : varchar(2)
+  threshold : numeric
+  duration_sec : int
+  level : alert_level_enum
+  zone_id : varchar(12) <<FK>> NULL
+}
+entity "alert" as alert {
+  * alert_id : bigserial <<PK>>
+  --
+  rule_id : int <<FK>>
+  incident_id : varchar(20) <<FK>>
+  device_id : varchar(24) <<FK>>
+  category : alert_category_enum
+  level : alert_level_enum
+  message : text
+  raised_at : timestamptz
+  ack_by : uuid <<FK>>
+  ack_at : timestamptz
+}
+entity "traffic_incident" as inc {
+  * incident_id : varchar(20) <<PK>>
+  --
+  * segment_id : varchar(24) <<FK>>
+  type : incident_type_enum
+  severity : smallint
+  source : detection_source_enum
+  status : incident_status_enum
+  detected_at : timestamptz
+  verified_by : uuid <<FK>>
+  resolved_at : timestamptz
+}
+entity "maintenance_ticket" as tkt {
+  * ticket_id : varchar(16) <<PK>>
+  --
+  * asset_id : varchar(24) <<FK>>
+  team_id : int <<FK>>
+  alert_id : bigint <<FK>>
+  fault_code : varchar(20)
+  priority : priority_enum
+  state : ticket_state_enum
+  sla_due_at : timestamptz
+  created_at : timestamptz
+  closed_at : timestamptz
+}
+entity "ticket_event" as tev {
+  * event_id : bigserial <<PK>>
+  --
+  * ticket_id : varchar(16) <<FK>>
+  from_state : ticket_state_enum
+  to_state : ticket_state_enum
+  actor_id : uuid <<FK>>
+  note : text
+  at : timestamptz
+}
+entity "maintenance_team" as team {
+  * team_id : serial <<PK>>
+  --
+  name : varchar(80)
+  zone_id : varchar(12) <<FK>>
+  skills : asset_type_enum[]
+}
+entity "app_user" as usr {
+  * user_id : uuid <<PK>>
+  --
+  idp_subject : varchar(128) <<UQ>>
+  full_name : varchar(120)
+  email : varchar(120)
+  team_id : int <<FK>>
+  is_active : boolean
+}
+entity "role" as role {
+  * role_id : serial <<PK>>
+  --
+  name : varchar(40) <<UQ>>
+}
+entity "user_role" as ur {
+  * user_id : uuid <<PK,FK>>
+  * role_id : int <<PK,FK>>
+  --
+  zone_scope : varchar(12)
+}
+entity "role_permission" as rp {
+  * role_id : int <<PK,FK>>
+  * permission : varchar(60) <<PK>>
+}
+zone ||--o{ dev
+zone ||--o{ asset
+zone ||--o{ seg
+zone ||--o{ team
+dm ||--o{ dev
+asset |o--o{ dev
+seg ||--o{ inc
+rule |o--o{ alert
+inc |o--o{ alert
+dev |o--o{ alert
+asset ||--o{ tkt
+alert |o--o| tkt
+team |o--o{ tkt
+tkt ||--o{ tev
+team |o--o{ usr
+usr ||--o{ ur
+role ||--o{ ur
+role ||--o{ rp
+@enduml

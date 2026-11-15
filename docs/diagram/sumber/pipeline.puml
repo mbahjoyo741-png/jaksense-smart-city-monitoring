@@ -1,0 +1,55 @@
+@startuml
+!include _skin.iuml
+left to right direction
+skinparam rectangle {
+  BackgroundColor #F2F8F8
+  BorderColor #0E6B70
+}
+skinparam queue {
+  BackgroundColor #FFF4D6
+  BorderColor #B7862A
+}
+skinparam database {
+  BackgroundColor #E8EEF8
+  BorderColor #2F6FB8
+}
+rectangle "EMQX\nRule Engine" as EMQX
+queue "traffic.telemetry" as T1
+queue "env.telemetry" as T2
+queue "facility.telemetry" as T3
+queue "video.events" as T4
+queue "dead-letter" as DLQ
+rectangle "Dataflow Streaming Job\n(Apache Beam, Streaming Engine)" as DF {
+  rectangle "1 Parse &\nValidasi Skema\n(Avro/Protobuf)" as P1
+  rectangle "2 Dedup\n(messageId,\nstateful 10 mnt)" as P2
+  rectangle "3 Enrichment\n(side input: registry,\nzona, segmen)" as P3
+  rectangle "4 Window\nfixed 1 mnt &\nsliding 15/5 mnt" as P4
+  rectangle "5 CEP & Aturan\n(ambang, drop >50%,\nfill ≥ 90%)" as P5
+  rectangle "6 Fan-out\n(Router)" as P6
+}
+database "Memorystore\nRedis" as R
+database "Bigtable" as BT
+database "BigQuery\n(Storage Write API)" as BQ
+queue "alert.raised" as AL
+queue "ticket.requested" as TK
+queue "dashboard.updates" as DU
+EMQX --> T1
+EMQX --> T2
+EMQX --> T3
+T4 --> P1
+T1 --> P1
+T2 --> P1
+T3 --> P1
+P1 --> P2
+P1 --> DLQ : gagal validasi
+P2 --> P3
+P3 --> P4
+P4 --> P5
+P5 --> P6
+P6 --> R : status terkini
+P6 --> BT : data mentah\n& agregat 1 mnt
+P6 --> BQ : agregat & event
+P6 --> AL
+P6 --> TK
+P6 --> DU
+@enduml

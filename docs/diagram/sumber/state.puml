@@ -1,0 +1,33 @@
+@startuml
+!include _skin.iuml
+hide empty description
+[*] --> Baru : gangguan terdeteksi /\nbuat tiket, hitung SLA
+state "Baru\n(New)" as Baru
+state "Ditugaskan\n(Assigned)" as Ditugaskan
+state "Dikerjakan\n(InProgress)" as Dikerjakan
+state "Selesai\n(Resolved)" as Selesai
+state "Ditutup\n(Closed)" as Ditutup
+state "Dibatalkan\n(Cancelled)" as Dibatalkan
+state "Eskalasi" as Eskalasi
+Baru : entry / notifikasi supervisor zona
+Baru : do / auto-assign berdasarkan zona & keahlian
+Ditugaskan : entry / push ke aplikasi petugas
+Dikerjakan : entry / catat waktu mulai
+Dikerjakan : do / unggah foto & catatan
+Selesai : do / pantau telemetri aset
+Ditutup : entry / hitung MTTR, perbarui RUL
+Baru --> Ditugaskan : assign(tim) [tim tersedia]
+Baru --> Dibatalkan : cancel [alarm palsu /\nduplikat]
+Ditugaskan --> Dikerjakan : start() [petugas di lokasi\n(geofence ≤ 50 m)]
+Ditugaskan --> Ditugaskan : reassign(tim lain)
+Ditugaskan --> Dibatalkan : cancel [aset pulih sendiri]
+Dikerjakan --> Selesai : resolve(catatan)
+Dikerjakan --> Ditugaskan : butuh suku cadang /\ntim lain
+Selesai --> Ditutup : [telemetri normal ≥ 30 mnt]\n/ close()
+Selesai --> Dikerjakan : [gangguan muncul lagi]\n/ reopen()
+Baru --> Eskalasi : after(SLA respons)
+Ditugaskan --> Eskalasi : after(SLA respons)
+Eskalasi --> Ditugaskan : supervisor assign ulang
+Ditutup --> [*]
+Dibatalkan --> [*]
+@enduml

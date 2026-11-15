@@ -1,0 +1,4 @@
+node_modules/
+tools/laporan/out/
+.DS_Store
+*.log
